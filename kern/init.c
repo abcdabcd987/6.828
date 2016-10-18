@@ -9,14 +9,14 @@
 
 // Test the stack backtrace function (lab 1 only)
 void
-test_backtrace(int x)
+test_backtrace(int x, int sum)
 {
-	cprintf("entering test_backtrace %d\n", x);
+	cprintf("entering test_backtrace x=%08x sum=%08x\n", x, sum);
 	if (x > 0)
-		test_backtrace(x-1);
+		test_backtrace(x-1, sum+x);
 	else
 		mon_backtrace(0, 0, 0);
-	cprintf("leaving test_backtrace %d\n", x);
+	cprintf("leaving test_backtrace x=%08x sum=%08x\n", x, sum);
 }
 
 void
@@ -35,8 +35,13 @@ i386_init(void)
 
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
+	int x = 1, y = 3, z = 4;
+	cprintf("x %d, y %x, z %d\n", x, y, z);
+	unsigned int i = 0x00646c72;
+    cprintf("H%x Wo%s\n", 57616, &i);
+
 	// Test the stack backtrace function (lab 1 only)
-	test_backtrace(5);
+	test_backtrace(5, 0);
 
 	// Drop into the kernel monitor.
 	while (1)
