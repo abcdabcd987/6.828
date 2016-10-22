@@ -13,7 +13,6 @@
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
-
 struct Command {
 	const char *name;
 	const char *desc;
@@ -24,6 +23,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display stack backtrace", mon_backtrace },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -51,14 +51,41 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	cprintf("  edata  %08x (virt)  %08x (phys)\n", edata, edata - KERNBASE);
 	cprintf("  end    %08x (virt)  %08x (phys)\n", end, end - KERNBASE);
 	cprintf("Kernel executable memory footprint: %dKB\n",
-		ROUNDUP(end - entry, 1024) / 1024);
+	ROUNDUP(end - entry, 1024) / 1024);
 	return 0;
 }
 
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
+	int i, args;
+	uint32_t *ebp;
+	uint32_t eip;
+	struct Eipdebuginfo info;
+
+	cprintf("Stack backtrace:\n");
+	ebp = (uint32_t*) read_ebp();
+	args = -1;
+	while (ebp != 0) {
+		eip = ebp[1];
+		cprintf("  ebp %08x  eip %08x", ebp, eip);
+		if (args == -1) {
+			cprintf(" ARGS5 %08x %08x %08x %08x %08x\n", ebp[2], ebp[3], ebp[4], ebp[5], ebp[6]);
+		} else {
+			cprintf("  args");
+			for (i = 0; i < args; ++i)
+				cprintf(" %08x", ebp[2+i]);
+			cprintf("\n");
+		}
+		if (debuginfo_eip(eip, &info) == 0) {
+			cprintf("         %s:%d: %.*s+%d:\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, eip - info.eip_fn_addr);
+			args = info.eip_fn_narg;
+		} else {
+			cprintf("         <cannot find debuginfo>:\n");
+			args = -1;
+		}
+		ebp = (uint32_t*) ebp[0];
+	}
 	return 0;
 }
 
