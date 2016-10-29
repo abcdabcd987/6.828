@@ -157,8 +157,8 @@ mem_init(void)
 
 	check_page_free_list(1);
 	check_page_alloc();
-	panic("Exercise 2.1 stop here.");
 	check_page();
+	panic("Exercise 2.3 stop here.");
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -350,7 +350,16 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	struct PageInfo *new_page = NULL;
+	pde_t *pde = &pgdir[PDX(va)];
+	if (!(*pde & PTE_P)) {
+		if (!create) return NULL;
+		if (!(new_page = page_alloc(ALLOC_ZERO))) return NULL;
+		++new_page->pp_ref;
+		*pde = page2pa(new_page) | PTE_U | PTE_W | PTE_P;
+	}
+	pte_t *pte_base = KADDR(PTE_ADDR(*pde));
+	return &pte_base[PTX(va)];
 }
 
 //
@@ -368,6 +377,11 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	for (size_t offset = 0; offset < size; offset += PGSIZE) {
+		pte_t *pte = pgdir_walk(pgdir, (void*)va + offset, 1);
+		if (!pte) panic("boot_map_region");
+		*pte = PTE_ADDR(pa + offset) | perm | PTE_P;
+	}
 }
 
 //
@@ -399,6 +413,11 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t *pte = pgdir_walk(pgdir, va, true);
+	if (!pte) return -E_NO_MEM;
+	++pp->pp_ref;
+	if (*pte & PTE_P) page_remove(pgdir, va);
+	*pte = page2pa(pp) | perm | PTE_P;
 	return 0;
 }
 
@@ -417,7 +436,10 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *pte = pgdir_walk(pgdir, va, false);
+	if (!pte) return NULL;
+	if (pte_store) *pte_store = pte;
+	return pa2page(PTE_ADDR(*pte));
 }
 
 //
@@ -439,6 +461,12 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t *pte;
+	struct PageInfo *pp = page_lookup(pgdir, va, &pte);
+	if (!pp) return;
+	page_decref(pp);
+	*pte = 0;
+	tlb_invalidate(pgdir, va);
 }
 
 //
