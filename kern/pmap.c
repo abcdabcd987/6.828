@@ -158,7 +158,6 @@ mem_init(void)
 	check_page_free_list(1);
 	check_page_alloc();
 	check_page();
-	panic("Exercise 2.3 stop here.");
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -170,6 +169,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -182,6 +182,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -191,6 +192,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -358,8 +360,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		++new_page->pp_ref;
 		*pde = page2pa(new_page) | PTE_U | PTE_W | PTE_P;
 	}
-	pte_t *pte_base = KADDR(PTE_ADDR(*pde));
-	return &pte_base[PTX(va)];
+	pte_t *pt = KADDR(PTE_ADDR(*pde));
+	return &pt[PTX(va)];
 }
 
 //
