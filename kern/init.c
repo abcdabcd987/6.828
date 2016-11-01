@@ -11,7 +11,6 @@
 #include <kern/env.h>
 #include <kern/trap.h>
 
-
 void
 i386_init(void)
 {
