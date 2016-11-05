@@ -116,7 +116,8 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-	for (int i = NENV - 1; i >= 0; --i) {
+	int i;
+	for (i = NENV - 1; i >= 0; --i) {
 		struct Env *env = &envs[i];
 		env->env_id = i;
 		env->env_link = env_free_list;
@@ -187,14 +188,11 @@ env_setup_vm(struct Env *e)
 
 	// LAB 3: Your code here.
 	e->env_pgdir = (pde_t *)page2kva(p);
-	for (int i = PDX(UTOP); i < NPDENTRIES; ++i) {
-		if (i == PDX(UVPT)) continue;
+	for (i = 0; i < PDX(UTOP); ++i)
+		e->env_pgdir[i] = 0;
+	for (i = PDX(UTOP); i < NPDENTRIES; ++i)
 		e->env_pgdir[i] = kern_pgdir[i];
-		if (e->env_pgdir[i] & PTE_P) {
-			struct PageInfo* page = pa2page(PTE_ADDR(e->env_pgdir[i]));
-			++page->pp_ref;
-		}
-	}
+	++p->pp_ref;
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -285,7 +283,8 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   (Watch out for corner-cases!)
 	void *lo = ROUNDDOWN(va, PGSIZE);
 	void *hi = ROUNDUP(va+len, PGSIZE);
-	for (void *vaddr = lo; vaddr <= hi; ++vaddr) {
+	void *vaddr;
+	for (vaddr = lo; vaddr < hi; vaddr += PGSIZE) {
 		struct PageInfo *pp = page_alloc(0);
 		if (!pp)
 			panic("region_alloc: cannot alloc page");
@@ -355,9 +354,11 @@ load_icode(struct Env *e, uint8_t *binary)
 	struct Proghdr *ph = (struct Proghdr *) ((uint8_t *) elfhdr + elfhdr->e_phoff);
 	struct Proghdr *eph = ph + elfhdr->e_phnum;
 	for (; ph < eph; ph++) {
-		region_alloc(e, (void*) ph->p_va, ph->p_memsz);
-		memcpy((void*) ph->p_va, (void*) binary + ph->p_offset, ph->p_filesz);
-		memset((void*) ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+		if (ph->p_type == ELF_PROG_LOAD) {
+			region_alloc(e, (void*) ph->p_va, ph->p_memsz);
+			memcpy((void*) ph->p_va, (void*) binary + ph->p_offset, ph->p_filesz);
+			memset((void*) ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+		}
 	}
 	e->env_tf.tf_eip = elfhdr->e_entry;
 	lcr3((uint32_t) cr3);
@@ -366,9 +367,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
-	struct PageInfo *pp_ustack = page_alloc(0);
-	if (page_insert(e->env_pgdir, pp_ustack, (void*) USTACKTOP - PGSIZE, PTE_U | PTE_W) < 0)
-		panic("load_icode: page_insert");
+	region_alloc(e, (void*) USTACKTOP - PGSIZE, PGSIZE);
 }
 
 //
@@ -503,17 +502,12 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	if (e->env_status == ENV_RUNNABLE) {
-		if (curenv && curenv->env_status == ENV_RUNNING)
-			curenv->env_status = ENV_RUNNABLE;
-		curenv = e;
-		e->env_status = ENV_RUNNING;
-		++e->env_runs;
-		lcr3(PADDR(e->env_pgdir));
-	}
+	if (curenv && curenv->env_status == ENV_RUNNING)
+		curenv->env_status = ENV_RUNNABLE;
+	curenv = e;
+	e->env_status = ENV_RUNNING;
+	++e->env_runs;
+	lcr3(PADDR(e->env_pgdir));
 	env_pop_tf(&e->env_tf);
-
-
-	panic("env_run not yet implemented");
 }
 

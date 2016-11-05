@@ -395,7 +395,8 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
-	for (size_t offset = 0; offset < size; offset += PGSIZE) {
+	size_t offset;
+	for (offset = 0; offset < size; offset += PGSIZE) {
 		pte_t *pte = pgdir_walk(pgdir, (void*)va + offset, 1);
 		if (!pte) panic("boot_map_region");
 		*pte = PTE_ADDR(pa + offset) | perm | PTE_P;
@@ -523,7 +524,18 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
+	const void *lo = ROUNDDOWN(va, PGSIZE);
+	const void *hi = ROUNDUP(va+len, PGSIZE);
+	const void *addr;
+	pte_t *pte;
+	for (addr = lo; addr < hi; addr += PGSIZE) {
+		if (addr < (const void *)ULIM) {
+			pte_t *pte = pgdir_walk(env->env_pgdir, (void *)addr, 0);
+			if (pte && (*pte & (perm | PTE_P))) continue;
+		}
+		user_mem_check_addr = (uintptr_t) (va > addr ? va : addr);
+		return -E_FAULT;
+	}
 	return 0;
 }
 
