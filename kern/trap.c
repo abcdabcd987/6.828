@@ -59,12 +59,41 @@ static const char *trapname(int trapno)
 }
 
 
+#define ADD_TRAP_HANDLER(num, dpl) \
+	do { \
+		extern void TRAP_HANDLER_FUNC(num)(); \
+		SETGATE(idt[num], 0, GD_KT, TRAP_HANDLER_FUNC(num), dpl); \
+	} while(0)
+
 void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
+	extern uint32_t trap_handlers[];
 
 	// LAB 3: Your code here.
+	ADD_TRAP_HANDLER(T_DIVIDE, 0);
+	ADD_TRAP_HANDLER(T_DEBUG, 0);
+	ADD_TRAP_HANDLER(T_NMI , 0);
+	ADD_TRAP_HANDLER(T_BRKPT, 0);
+	ADD_TRAP_HANDLER(T_OFLOW, 0);
+	ADD_TRAP_HANDLER(T_BOUND, 0);
+	ADD_TRAP_HANDLER(T_ILLOP, 0);
+	ADD_TRAP_HANDLER(T_DEVICE, 0);
+	ADD_TRAP_HANDLER(T_DBLFLT, 0);
+	// T_COPROC
+	ADD_TRAP_HANDLER(T_TSS, 0);
+	ADD_TRAP_HANDLER(T_SEGNP, 0);
+	ADD_TRAP_HANDLER(T_STACK, 0);
+	ADD_TRAP_HANDLER(T_GPFLT, 0);
+	ADD_TRAP_HANDLER(T_PGFLT, 0);
+	// T_RES
+	ADD_TRAP_HANDLER(T_FPERR, 0);
+	ADD_TRAP_HANDLER(T_ALIGN, 0);
+	ADD_TRAP_HANDLER(T_MCHK, 0);
+	ADD_TRAP_HANDLER(T_SIMDERR, 0);
+
+	ADD_TRAP_HANDLER(T_SYSCALL, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
