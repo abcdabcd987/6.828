@@ -39,6 +39,8 @@
 #define IRQ_IDE         14
 #define IRQ_ERROR       19
 
+#define TRAP_HANDLER_FUNC(x) __trap_handler_##x
+
 #ifndef __ASSEMBLER__
 
 #include <inc/types.h>
