@@ -262,7 +262,10 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	for (int i = 0; i < NCPU; ++i) {
+		uintptr_t kstacktop = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(kern_pgdir, kstacktop - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+	}
 }
 
 // --------------------------------------------------------------
@@ -307,8 +310,12 @@ page_init(void)
 	pages[0].pp_link = NULL;
 	for (i = 1; i < npages_basemem; i++) {
 		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+		if (i != MPENTRY_PADDR / PGSIZE) {
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		} else {
+			pages[i].pp_link = NULL;
+		}
 	}
 	pg_boot_alloc = PGNUM(PADDR(boot_alloc(0)));
 	for (i = npages_basemem; i < pg_boot_alloc; i++) {
@@ -566,7 +573,13 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	physaddr_t upper = ROUNDUP(base + size, PGSIZE);
+	if (upper > MMIOLIM)
+		panic("mmio_map_region");
+	boot_map_region(kern_pgdir, base, size, pa, PTE_W | PTE_PCD | PTE_PWT);
+	uintptr_t old_base = base;
+	base = upper;
+	return (void*)old_base;
 }
 
 static uintptr_t user_mem_check_addr;
