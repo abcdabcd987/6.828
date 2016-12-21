@@ -100,6 +100,13 @@ trap_init(void)
 	ADD_TRAP_HANDLER(T_MCHK, 0, 0);
 	ADD_TRAP_HANDLER(T_SIMDERR, 0, 0);
 
+	ADD_TRAP_HANDLER(IRQ_OFFSET_TIMER   , 0, 0);
+	ADD_TRAP_HANDLER(IRQ_OFFSET_KBD     , 0, 0);
+	ADD_TRAP_HANDLER(IRQ_OFFSET_SERIAL  , 0, 0);
+	ADD_TRAP_HANDLER(IRQ_OFFSET_SPURIOUS, 0, 0);
+	ADD_TRAP_HANDLER(IRQ_OFFSET_IDE     , 0, 0);
+	ADD_TRAP_HANDLER(IRQ_OFFSET_ERROR   , 0, 0);
+
 	ADD_TRAP_HANDLER(T_SYSCALL, 0, 3);
 
 	// Per-CPU setup 
@@ -229,6 +236,11 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

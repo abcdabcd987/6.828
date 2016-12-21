@@ -39,6 +39,13 @@
 #define IRQ_IDE         14
 #define IRQ_ERROR       19
 
+#define IRQ_OFFSET_TIMER     32
+#define IRQ_OFFSET_KBD       33
+#define IRQ_OFFSET_SERIAL    36
+#define IRQ_OFFSET_SPURIOUS  39
+#define IRQ_OFFSET_IDE       46
+#define IRQ_OFFSET_ERROR     51
+
 #define TRAP_HANDLER_FUNC(x) __trap_handler_##x
 
 #ifndef __ASSEMBLER__

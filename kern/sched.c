@@ -29,20 +29,15 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-	idle = thiscpu->cpu_env;
-	int i = idle ? ENVX(idle->env_id) + 1 : 0;
-	int stop = i;
-	do {
-		if (envs[i].env_status == ENV_RUNNABLE) {
-			idle = &envs[i];
-			break;
-		}
-		i = (i + 1) % NENV;
-	} while (i != stop);
-	if (idle)
-		env_run(idle); // never returns
-	else
-		sched_halt(); // sched_halt never returns
+	envid_t beg = curenv ? curenv->env_id + 1 : 0;
+	for (int i = 0; i < NENV; ++i) {
+		struct Env *e = &envs[(beg + i) % NENV];
+		if (e->env_status == ENV_RUNNABLE)
+			env_run(e);	// env_run never returns
+	}
+	if (curenv && curenv->env_status == ENV_RUNNING)
+		env_run(curenv);	// env_run never returns
+	sched_halt();			// sched_halt never returns
 }
 
 // Halt this CPU when there is nothing to do. Wait until the
