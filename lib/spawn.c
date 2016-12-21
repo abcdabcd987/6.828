@@ -301,6 +301,16 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	int r;
+	envid_t parent = thisenv->env_id;
+	for (unsigned pn = 0; pn < PGNUM(UTOP)-1; ++pn) {
+		unsigned pdx = pn / NPDENTRIES;
+		if ((uvpd[pdx]&PTE_P) == PTE_P && (uvpt[pn]&(PTE_P|PTE_SHARE)) == (PTE_P|PTE_SHARE)) {
+			void *va = (void *)(pn*PGSIZE);
+			if ((r = sys_page_map(parent, va, child, va, uvpt[pn] & PTE_SYSCALL)) < 0)
+				panic("copy_shared_pages %e", r);
+		}
+	}
 	return 0;
 }
 

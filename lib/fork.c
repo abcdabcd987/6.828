@@ -71,6 +71,13 @@ duppage(envid_t envid, unsigned pn)
 		panic("duppage: permission");
 	void *va = (void*)(pn * PGSIZE);
 
+	// shared pages
+	if ((pte & PTE_SHARE) == PTE_SHARE) {
+		if ((r = sys_page_map(0, va, envid, va, pte & PTE_SYSCALL)) < 0)
+			panic("duppage: shared sys_page_map %e", r);
+		return 0;
+	}
+
 	// read-only pages
 	if (!(pte & (PTE_W | PTE_COW))) {
 		if ((r = sys_page_map(0, va, envid, va, PTE_P | (pte & PTE_U))) < 0)
@@ -79,7 +86,6 @@ duppage(envid_t envid, unsigned pn)
 	}
 
 	// writeable or copy-on-write pages
-	// cprintf("duppage(envid=%x, pn=%d)\n", envid, pn);
 	uint32_t perm = PTE_P | PTE_COW | (pte & PTE_U);
 	if ((r = sys_page_map(0, va, envid, va, perm)) < 0)
 		panic("duppage: child sys_page_map %e, envid=%x", r, envid);
